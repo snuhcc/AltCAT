@@ -1,0 +1,24 @@
+{
+  "mappings": {
+    "https://www.uscis.gov/": {
+      "en": "https://www.uscis.gov/",
+      "ko": null,
+      "zh": null,
+      "es": "https://www.uscis.gov/es"
+    }
+  },
+  "defaultPatterns": {
+    "pathBased": {
+      "en": "/en",
+      "ko": "/ko",
+      "zh": "/zh", 
+      "es": "/es"
+    },
+    "subdomainBased": {
+      "en": "",
+      "ko": "kr.",
+      "zh": "cn.",
+      "es": "es."
+    }
+  }
+} 

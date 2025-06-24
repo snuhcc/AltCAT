@@ -1,0 +1,17 @@
+{
+  "mappings": {},
+  "defaultPatterns": {
+    "pathBased": {
+      "en": "/en",
+      "ko": "/ko",
+      "zh": "/zh", 
+      "es": "/es"
+    },
+    "subdomainBased": {
+      "en": "",
+      "ko": "kr.",
+      "zh": "cn.",
+      "es": "es."
+    }
+  }
+} 

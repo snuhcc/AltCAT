@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- 고양이 얼굴 -->
+  <circle cx="32" cy="34" r="18" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+  
+  <!-- 왼쪽 귀 -->
+  <path d="M20 22 L16 10 L28 16 Z" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+  <!-- 왼쪽 귀 안쪽 -->
+  <path d="M20 20 L18 14 L25 18 Z" fill="#fce7f3"/>
+  
+  <!-- 오른쪽 귀 -->
+  <path d="M44 22 L48 10 L36 16 Z" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+  <!-- 오른쪽 귀 안쪽 -->
+  <path d="M44 20 L46 14 L39 18 Z" fill="#fce7f3"/>
+  
+  <!-- 왼쪽 눈 -->
+  <ellipse cx="26" cy="30" rx="3" ry="4" fill="#1f2937"/>
+  <ellipse cx="26.5" cy="29" rx="1" ry="1.5" fill="#ffffff"/>
+  
+  <!-- 오른쪽 눈 -->
+  <ellipse cx="38" cy="30" rx="3" ry="4" fill="#1f2937"/>
+  <ellipse cx="38.5" cy="29" rx="1" ry="1.5" fill="#ffffff"/>
+  
+  <!-- 코 -->
+  <path d="M30 36 L32 34 L34 36 L32 38 Z" fill="#f87171"/>
+  
+  <!-- 입 -->
+  <path d="M32 38 Q28 42 24 40" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+  <path d="M32 38 Q36 42 40 40" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- 수염 왼쪽 -->
+  <line x1="18" y1="32" x2="25" y2="33" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="18" y1="36" x2="25" y2="37" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round"/>
+  
+  <!-- 수염 오른쪽 -->
+  <line x1="46" y1="32" x2="39" y2="33" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="46" y1="36" x2="39" y2="37" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round"/>
+  
+  <!-- 볼 하이라이트 -->
+  <circle cx="22" cy="38" r="2" fill="#fce7f3" opacity="0.6"/>
+  <circle cx="42" cy="38" r="2" fill="#fce7f3" opacity="0.6"/>
+</svg> 
