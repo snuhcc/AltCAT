@@ -36,8 +36,11 @@ uvicorn main:app --reload
 기본은 ASSET 페이지로 설정. 
 
 총 2가지의 링크를 더 사용 가능함
-https://www.uscis.gov/                                                              -- 미이민국
-https://www.chosun.com/english/opinion-en/2025/06/26/IBNL6FHHHVC7HK4THF4A6MLL34/    -- 조선일보 기사
+
+- https://www.uscis.gov/                                                              -- 미이민국
+
+  
+- https://www.chosun.com/english/opinion-en/2025/06/26/IBNL6FHHHVC7HK4THF4A6MLL34/    -- 조선일보 기사
 
 모든 작업은 영어 기준으로 진행되므로, 다른 링크로 넘어갈 때는 영어 국기로 바꾸고 전환을 권장
 
