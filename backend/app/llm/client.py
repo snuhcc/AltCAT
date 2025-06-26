@@ -151,25 +151,27 @@ def make_request(image_url: str, alt_text: str, is_button: bool = False, context
         logging.info("is_button is True")
         image_type = "Controls, Form Elements, and Links"
 
-    # 첫 번째 AI Generated Alt Text
-    messages = create_messages(PROMPT_NAME_ENHACNED_ALT_TEXT, image_url, "", image_type, context)
-    try:
-        response = call_api_with_retries(
-            client=client,
-            model=OPENAI_4O_MINI_MODEL,
-            messages=messages,
-            temperature=0.1,
-            timeout=REQUEST_TIMEOUT
-        )
-        ai_generated_alt_text = response.choices[0].message.content
-    except Exception as e:
-        logging.error(f"ai_generated_alt_text 생성 중 타임아웃 혹은 오류: {e}")
-        return image_type, "TimeoutError", ""
-
-    # 두 번째 AI Modified Alt Text
+    # 🔥 로직 변경: Original alt text 유무에 따라 generate 또는 modify 중 하나만 수행
     if alt_text == EMPTY_STRING:
-        ai_modified_alt_text = EMPTY_STRING
+        # Original alt text가 없음 → Generate 작업만 수행
+        logging.info("No original alt-text found. Performing GENERATE operation.")
+        messages = create_messages(PROMPT_NAME_ENHACNED_ALT_TEXT, image_url, "", image_type, context)
+        try:
+            response = call_api_with_retries(
+                client=client,
+                model=OPENAI_4O_MINI_MODEL,
+                messages=messages,
+                temperature=0.1,
+                timeout=REQUEST_TIMEOUT
+            )
+            ai_generated_alt_text = response.choices[0].message.content
+            ai_modified_alt_text = EMPTY_STRING  # 수행하지 않음
+        except Exception as e:
+            logging.error(f"ai_generated_alt_text 생성 중 타임아웃 혹은 오류: {e}")
+            return image_type, "TimeoutError", ""
     else:
+        # Original alt text가 있음 → Modify 작업만 수행
+        logging.info(f"Original alt-text found: '{alt_text}'. Performing MODIFY operation.")
         messages = create_messages(PROMPT_NAME_ENHACNED_ALT_TEXT, image_url, alt_text, image_type, context)
         try:
             response = call_api_with_retries(
@@ -179,10 +181,11 @@ def make_request(image_url: str, alt_text: str, is_button: bool = False, context
                 temperature=0.1,
                 timeout=REQUEST_TIMEOUT
             )
+            ai_generated_alt_text = EMPTY_STRING  # 수행하지 않음
             ai_modified_alt_text = response.choices[0].message.content
         except Exception as e:
             logging.error(f"ai_modified_alt_text 생성 중 타임아웃 혹은 오류: {e}")
-            return image_type, ai_generated_alt_text, "TimeoutError"
+            return image_type, "", "TimeoutError"
 
     return image_type, ai_generated_alt_text, ai_modified_alt_text
 

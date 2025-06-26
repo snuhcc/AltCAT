@@ -3,6 +3,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import ImageCard from './ImageCard';
 import { ParsedImage } from '../types';
+import { URLMappingUtils, LanguageCode } from '../urlMappings';
 
 interface MainContentProps {
   parsedImages: ParsedImage[];
@@ -37,6 +38,7 @@ export default function MainContent({
   setParsedImagesMap
 }: MainContentProps) {
   const [randomQuote, setRandomQuote] = useState<string>('');
+  const [previewUrl, setPreviewUrl] = useState<string>(currentUrl);
 
   useEffect(() => {
     const quotes = [
@@ -54,7 +56,31 @@ export default function MainContent({
 
     const quote = quotes[Math.floor(Math.random() * quotes.length)];
     setRandomQuote(quote);
-  }, []); // 컴포넌트 마운트 시에만 실행
+  }, []);
+
+  useEffect(() => {
+    const getLanguageSpecificUrl = async () => {
+      if (!currentLanguage) {
+        setPreviewUrl(currentUrl);
+        return;
+      }
+
+      try {
+        const baseUrl = URLMappingUtils.extractBaseUrl(currentUrl);
+        const languageUrl = await URLMappingUtils.getLanguageUrl(baseUrl, currentLanguage as LanguageCode);
+        
+        const finalUrl = languageUrl || currentUrl;
+        
+        console.log(`Preview URL update - Language: ${currentLanguage}, Base: ${baseUrl}, Final: ${finalUrl}`);
+        setPreviewUrl(finalUrl);
+      } catch (error) {
+        console.error('Failed to get language-specific URL:', error);
+        setPreviewUrl(currentUrl);
+      }
+    };
+
+    getLanguageSpecificUrl();
+  }, [currentUrl, currentLanguage]);
 
   const formattedQuote = randomQuote.split('\n').map((line, index) => (
     <React.Fragment key={index}>
@@ -66,12 +92,18 @@ export default function MainContent({
   const [iframeLoading, setIframeLoading] = useState(true);
   const [iframeError, setIframeError] = useState(false);
   
-  // 프록시 URL 생성
+  const [iframeKey, setIframeKey] = useState(0);
+  
+  useEffect(() => {
+    setIframeLoading(true);
+    setIframeError(false);
+    setIframeKey(prev => prev + 1);
+  }, [previewUrl]);
+
   const getProxyUrl = (url: string) => {
     return `/api/proxy?url=${encodeURIComponent(url)}`;
   };
 
-  // iframe 로딩 상태 변경 핸들러
   const handleIframeLoad = () => {
     setIframeLoading(false);
   };
@@ -81,7 +113,6 @@ export default function MainContent({
     setIframeLoading(false);
   };
 
-  // 다운로드 로직 (동일)
   const handleDownloadHtml = useCallback(() => {
     if (!downloadedHtml) {
       alert('HTML이 없습니다.');
@@ -92,11 +123,17 @@ export default function MainContent({
     const doc = parser.parseFromString(downloadedHtml, 'text/html');
 
     parsedImages.forEach((img) => {
-      const { image_url, customized_alt_text, previous_alt_text } = img;
-      const newAlt = customized_alt_text?.trim() || previous_alt_text?.trim() || '';
+      const { image_url, previous_alt_text } = img;
+      
+      const currentLanguageCustomization = img.customized_alt_texts?.[currentLanguage || 'en'] || '';
+      const originalAlt = previous_alt_text?.trim() || '';
+      
+      const newAlt = currentLanguageCustomization.trim() || originalAlt;
+      
       const targetImg = doc.querySelector(`img[src="${image_url}"]`);
       if (targetImg) {
         targetImg.setAttribute('alt', newAlt);
+        console.log(`Updated alt for ${image_url}: "${newAlt}" (${currentLanguage || 'en'})`);
       } else {
         console.error('Image not found:', image_url);
       }
@@ -104,13 +141,26 @@ export default function MainContent({
 
     const updatedHtml = doc.documentElement.outerHTML;
 
+    const baseUrl = URLMappingUtils.extractBaseUrl(currentUrl);
     setParsedImagesMap((prev: any) => {
-      if (!prev[currentUrl]) return prev;
+      const currentData = prev[baseUrl];
+      if (!currentData) return prev;
+      
       return {
         ...prev,
-        [currentUrl]: {
-          ...prev[currentUrl],
-          htmlCode: updatedHtml,
+        [baseUrl]: {
+          ...currentData,
+          htmlCodes: {
+            ...currentData.htmlCodes,
+            [currentLanguage || 'en']: updatedHtml
+          },
+          multiLanguageData: {
+            ...currentData.multiLanguageData,
+            [currentLanguage || 'en']: {
+              ...currentData.multiLanguageData?.[currentLanguage || 'en'],
+              htmlCode: updatedHtml
+            }
+          }
         },
       };
     });
@@ -119,36 +169,26 @@ export default function MainContent({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'updated_page.html';
+    link.download = `updated_page_${currentLanguage || 'en'}.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [downloadedHtml, parsedImages, setParsedImagesMap, currentUrl]);
+  }, [downloadedHtml, parsedImages, currentLanguage, currentUrl, setParsedImagesMap]);
 
   return (
     <div className="flex flex-1 bg-gradient-to-r from-gray-100 to-gray-200">
-      {/* Left Side */}
       <div className="flex-1 p-8 flex flex-col gap-8 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
-        {/** 
-         *  loading === true 이거나, parsedImages.length === 0 이면 
-         *  동일한 로딩 영역을 보여준다. 
-         */}
         {(loading || parsedImages.length === 0) ? (
           <div className="flex flex-col items-center justify-center h-full bg-white rounded-xl shadow-lg p-8">
             <div className="loader animate-spin rounded-full border-8 border-blue-400 border-t-transparent w-24 h-24 mb-6"></div>
             <p className="text-gray-700 text-lg text-center italic">{formattedQuote}</p>
-            {/* 
-              로딩이 끝났는데도 0개라면 "No images available" 문구를 추가. 
-              ※ 필요 없다면 제거 가능
-            */}
             {!loading && parsedImages.length === 0 && (
               <p className="text-gray-500 text-center text-2xl mt-4">
               </p>
             )}
           </div>
         ) : (
-          // 로딩이 끝났고, 이미지 배열도 1개 이상인 경우 => ImageCard 렌더
           parsedImages.map((parsedImage) => (
             <ImageCard
               key={parsedImage.id}
@@ -160,17 +200,16 @@ export default function MainContent({
         )}
       </div>
 
-      {/* Divider */}
       <div className="w-px bg-gray-300 hidden md:block"></div>
 
-      {/* Right Side (Live Preview) */}
       <div className="w-full md:w-1/2 bg-white relative">
         <div className="absolute inset-0 p-4 flex flex-col">
-          {/* 헤더 라인: Live Preview + Download Updated HTML 버튼 */}
           <div className="mb-4 flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-800">
-              Live Preview
-            </h2>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">
+                Live Preview
+              </h2>
+            </div>
             <button
               onClick={handleDownloadHtml}
               className={`
@@ -187,16 +226,13 @@ export default function MainContent({
             </button>
           </div>
 
-          {/* 리버스 프록시로 로드되는 iframe */}
           <div className="flex-1 bg-gray-100 rounded-lg shadow-md overflow-hidden relative">
-            {/* 로딩 인디케이터 */}
             {iframeLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10">
                 <div className="loader animate-spin rounded-full border-8 border-blue-400 border-t-transparent w-16 h-16"></div>
               </div>
             )}
             
-            {/* 에러 메시지 */}
             {iframeError && (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-white z-10">
                 <div className="text-red-600 bg-red-100 p-4 rounded-lg shadow-md max-w-md">
@@ -205,13 +241,14 @@ export default function MainContent({
                     웹사이트 콘텐츠를 가져오는 중 오류가 발생했습니다.
                   </p>
                   <p className="text-xs mt-2 italic">
-                    URL: {currentUrl}
+                    URL: {previewUrl}
                   </p>
                   <button 
                     className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md text-sm"
                     onClick={() => {
                       setIframeLoading(true);
                       setIframeError(false);
+                      setIframeKey(prev => prev + 1);
                     }}
                   >
                     다시 시도
@@ -220,10 +257,10 @@ export default function MainContent({
               </div>
             )}
             
-            {/* iframe - 리버스 프록시 URL로 로드 */}
             <iframe
-              src={getProxyUrl(currentUrl)}
-              title={currentUrl}
+              key={iframeKey}
+              src={getProxyUrl(previewUrl)}
+              title={`${currentLanguage?.toUpperCase() || 'EN'} - ${previewUrl}`}
               className="w-full h-full rounded-lg"
               style={{
                 transform: 'scale(0.95)',

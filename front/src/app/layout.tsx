@@ -17,7 +17,23 @@ export const metadata: Metadata = {
   title: "AltCAT",
   description: "AI-powered image alt text authoring tool",
   icons: {
-		icon: "/cat-logo.svg",
+		icon: [
+			{
+				url: "/cat.png",
+				sizes: "32x32",
+				type: "image/png"
+			},
+			{
+				url: "/cat.png",
+				sizes: "64x64",
+				type: "image/png"
+			},
+			{
+				url: "/cat.png",
+				sizes: "128x128",
+				type: "image/png"
+			}
+		],
 	},
 };
 

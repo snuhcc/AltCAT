@@ -25,6 +25,14 @@ export default function Page() {
     es: {}
   });
   
+  // 🔥 추가: 언어별 customization 데이터
+  const [languageCustomizations, setLanguageCustomizations] = useState<Record<LanguageCode, Record<string, string>>>({
+    en: {},
+    ko: {},
+    zh: {},
+    es: {}
+  });
+  
   const [loading, setLoading] = useState<boolean>(false);
   const [urls, setUrls] = useState<string[]>([]);
   
@@ -35,6 +43,7 @@ export default function Page() {
   console.log('currentLanguage:', currentLanguage);
   console.log('masterAltTexts:', masterAltTexts);
   console.log('languageAltTexts:', languageAltTexts);
+  console.log('languageCustomizations:', languageCustomizations); // 🔥 추가
   console.log('multiLanguageCache:', multiLanguageCache);
 
   /**
@@ -42,15 +51,61 @@ export default function Page() {
    */
   const updateDisplayImages = useCallback(() => {
     const currentLanguageData = languageAltTexts[currentLanguage] || {};
+    const currentCustomizations = languageCustomizations[currentLanguage] || {}; // 🔥 추가
     
     setParsedImages(prevImages => 
-      prevImages.map(img => ({
-        ...img,
-        previous_alt_text: currentLanguageData[img.image_url] || '',
-        ai_generated_alt_text: masterAltTexts[img.image_url] || img.ai_generated_alt_text
-      }))
+      prevImages.map(img => {
+        // 🔥 AI-Generated Alt Text는 항상 마스터 데이터에서만 가져오기
+        // 마스터 데이터가 없으면 기존 값 유지 (오염 방지)
+        const preservedAiGenerated = masterAltTexts[img.image_url] || img.ai_generated_alt_text;
+        
+        // 🔥 Original Alt Text 로직: 기존 값 우선 유지
+        // 새로운 언어 데이터가 확실히 있을 때만 업데이트
+        const baseUrl = URLMappingUtils.extractBaseUrl(currentUrl);
+        const isLanguageParsed = multiLanguageCache[baseUrl]?.[currentLanguage] === true;
+        
+        // 🔥 상태 안정성 개선: 기존 값이 있으면 최대한 유지
+        let newPreviousAlt = img.previous_alt_text;
+        if (isLanguageParsed && currentLanguageData[img.image_url] !== undefined) {
+          // 파싱이 완료되고 새로운 데이터가 확실히 있을 때만 업데이트
+          newPreviousAlt = currentLanguageData[img.image_url];
+        }
+        
+        // 🔥 Customization 언어별 처리
+        const currentCustomization = currentCustomizations[img.image_url] || '';
+        
+        // 🔥 해당 이미지의 언어별 customization 객체 생성
+        const imageCustomizations: Record<string, string> = {};
+        Object.keys(languageCustomizations).forEach(lang => {
+          imageCustomizations[lang] = languageCustomizations[lang as LanguageCode][img.image_url] || '';
+        });
+        
+        // 🔥 Culture Aware Alt Text 언어별 처리
+        let newCultureAwareAlt = img.culture_aware_alt_text;
+        if (currentLanguage === 'en') {
+          // 영어인 경우 비움
+          newCultureAwareAlt = '';
+        }
+        // 다른 언어인 경우 기존 값 유지 (번역이 완료되면 자동으로 업데이트됨)
+        
+        return {
+          ...img,
+          previous_alt_text: newPreviousAlt,
+          ai_generated_alt_text: preservedAiGenerated,
+          culture_aware_alt_text: newCultureAwareAlt,
+          customized_alt_text: currentCustomization, // 🔥 현재 언어의 customization 적용
+          customized_alt_texts: imageCustomizations // 🔥 해당 이미지의 언어별 customization
+        };
+      })
     );
-  }, [currentLanguage, masterAltTexts, languageAltTexts]);
+  }, [
+    currentLanguage, 
+    languageAltTexts, 
+    languageCustomizations, // 🔥 추가 의존성
+    masterAltTexts, 
+    currentUrl, 
+    multiLanguageCache
+  ]); // 🔥 수정: 의존성 배열 명시적으로 정리하여 안정성 향상
 
   /**
    * 상태 동기화 헬퍼 함수들
@@ -87,7 +142,9 @@ export default function Page() {
       images.forEach((img) => {
         const imageKey = img.image_url;
         if (language === 'en') {
-          masterData[imageKey] = img.ai_generated_alt_text || '';
+          // 🔥 실제로 생성된 AI 텍스트를 마스터 데이터로 저장
+          const actualAIText = img.ai_generated_alt_text || img.ai_modified_alt_text || '';
+          masterData[imageKey] = actualAIText;
         }
         languageData[imageKey] = img.previous_alt_text || '';
       });
@@ -156,22 +213,45 @@ export default function Page() {
 
   }), [multiLanguageCache, parsedImagesMap]);
 
-  // 언어 변경 시 화면 업데이트
+  // 🔥 수정: 언어 변경 시에만 화면 업데이트하도록 최적화
   useEffect(() => {
     updateDisplayImages();
-  }, [updateDisplayImages]);
+  }, [currentLanguage]); // 🔥 updateDisplayImages 의존성 제거하여 무한 루프 방지
+
+  // 🔥 추가: 언어별 데이터나 마스터 데이터가 변경될 때만 화면 업데이트
+  useEffect(() => {
+    updateDisplayImages();
+  }, [languageAltTexts, languageCustomizations, masterAltTexts, multiLanguageCache]); // 🔥 실제 데이터 변경 시에만 업데이트
+
+  // 언어 변경 시 화면 업데이트
+  // 🚫 더 이상 사용하지 않음 - 위에서 최적화된 useEffect로 대체
+  // useEffect(() => {
+  //   updateDisplayImages();
+  // }, [updateDisplayImages]);
 
   // 🔥 새로 추가: parsedImages 업데이트 후 자동 Culture Aware 번역 수행
   useEffect(() => {
     const performAutoTranslation = async () => {
-      // 영어가 아니고, 이미지가 있고, 로딩 중이 아닐 때만 실행
+      // 🔥 조건을 더 엄격하게: 영어가 아니고, 이미지가 있고, 로딩 중이 아니고, 실제로 번역할 이미지가 있을 때만 실행
       if (currentLanguage !== 'en' && parsedImages.length > 0 && !loading) {
-        console.log(`Auto-translating to ${currentLanguage} for ${parsedImages.length} images`);
-        await performAutoCultureAwareTranslation(currentLanguage, parsedImages);
+        // 번역이 필요한 이미지가 실제로 있는지 먼저 확인
+        const needsTranslation = parsedImages.some(image => {
+          const actualAIText = image.ai_generated_alt_text || image.ai_modified_alt_text || '';
+          const hasEnglishText = actualAIText.trim() !== '';
+          const hasTranslation = (image.culture_aware_alt_text || '').trim() !== '';
+          return hasEnglishText && !hasTranslation;
+        });
+        
+        if (needsTranslation) {
+          console.log(`Auto-translating to ${currentLanguage} for ${parsedImages.length} images`);
+          await performAutoCultureAwareTranslation(currentLanguage, parsedImages);
+        }
       }
     };
 
-    performAutoTranslation();
+    // 🔥 디바운스 효과: 약간의 지연을 두어 연속 실행 방지
+    const timeoutId = setTimeout(performAutoTranslation, 300);
+    return () => clearTimeout(timeoutId);
   }, [parsedImages, currentLanguage, loading]); // parsedImages가 변경될 때마다 실행
 
   // 메모리 정리 (컴포넌트 언마운트 시)
@@ -202,10 +282,12 @@ export default function Page() {
     console.log('Language changed to:', languageCode);
     setCurrentLanguage(languageCode);
     
+    // 🔥 캐시 키를 baseUrl로 통일
+    const baseUrl = URLMappingUtils.extractBaseUrl(currentUrl);
+    
     // 이미 캐시된 데이터가 있는지 확인
-    if (StateUtils.isLanguageCached(currentUrl, languageCode)) {
+    if (StateUtils.isLanguageCached(baseUrl, languageCode)) {
       console.log(`Using cached data for ${languageCode}`);
-      updateDisplayImages();
       return;
     }
     
@@ -229,7 +311,9 @@ export default function Page() {
 
     // 번역이 필요한 이미지만 필터링 (이미 번역된 것은 제외)
     const imagesToTranslate = images.filter(image => {
-      const hasEnglishText = (masterAltTexts[image.image_url] || image.ai_generated_alt_text || '').trim() !== '';
+      // 🔥 실제로 생성된 AI 텍스트 확인 (generate 또는 modify)
+      const actualAIText = image.ai_generated_alt_text || image.ai_modified_alt_text || '';
+      const hasEnglishText = actualAIText.trim() !== '';
       const hasTranslation = (image.culture_aware_alt_text || '').trim() !== '';
       return hasEnglishText && !hasTranslation;
     });
@@ -243,14 +327,15 @@ export default function Page() {
     
     // 필터링된 이미지 목록에 대해 번역 수행
     const translationPromises = imagesToTranslate.map(async (image) => {
-      const englishText = masterAltTexts[image.image_url] || image.ai_generated_alt_text || '';
+      // 🔥 실제로 생성된 AI 텍스트 사용
+      const englishText = image.ai_generated_alt_text || image.ai_modified_alt_text || '';
       
       try {
         const translated = await translateToCultureAware(englishText, targetLanguage);
         if (translated) {
           // updateImageAlt 함수를 통해 상태 업데이트
           updateImageAlt(image.id, 'culture_aware_alt_text', translated);
-          console.log(`Auto-translated image ${image.id}: "${translated}"`);
+          console.log(`Auto-translated image ${image.id}: "${englishText}" -> "${translated}"`);
         }
       } catch (error) {
         console.error(`Auto-translation failed for image ${image.id}:`, error);
@@ -268,14 +353,29 @@ export default function Page() {
   const handleMainParsing = async (url: string) => {
     // 🔥 핵심 수정: 입력 URL에서 베이스 URL 추출 후 영어 URL 찾기
     const baseUrl = URLMappingUtils.extractBaseUrl(url);
-    const englishUrl = await URLMappingUtils.getLanguageUrl(baseUrl, 'en') || baseUrl;
+    const englishUrl = await URLMappingUtils.getLanguageUrl(baseUrl, 'en');
     
-    console.log(`Input URL: ${url} → Base URL: ${baseUrl} → English URL: ${englishUrl}`);
+    // 🔥 수정: 영어 URL이 명시적으로 null인 경우 처리
+    if (englishUrl === null) {
+      console.log(`English not supported for ${baseUrl} - cannot perform main parsing`);
+      // 영어가 지원되지 않는 경우 빈 데이터로 설정
+      setParsedImages([]);
+      setLanguageAltTexts(prev => ({
+        ...prev,
+        en: {}
+      }));
+      StateUtils.setCacheStatus(baseUrl, 'en', true); // 빈 데이터도 캐시로 표시
+      return;
+    }
+    
+    // fallback으로 baseUrl 사용 (predefined 매핑이 없는 경우)
+    const finalEnglishUrl = englishUrl || baseUrl;
+    
+    console.log(`Input URL: ${url} → Base URL: ${baseUrl} → English URL: ${finalEnglishUrl}`);
     
     // 이미 캐시된 데이터가 있는지 확인 (베이스 URL 기준)
     if (StateUtils.isLanguageCached(baseUrl, 'en')) {
       console.log('Using cached English data');
-      updateDisplayImages();
       return;
     }
     
@@ -283,11 +383,11 @@ export default function Page() {
       setLoading(true);
       setParsedImages([]);
       
-      console.log('Fetching main parsing for:', englishUrl);
+      console.log('Fetching main parsing for:', finalEnglishUrl);
       
       // 기존 fetchImages 함수 사용 (파싱 + AI 생성)
       const newImages = await new Promise<ParsedImage[]>((resolve) => {
-        fetchImages(englishUrl, setLoading, (data) => resolve(data));
+        fetchImages(finalEnglishUrl, setLoading, (data) => resolve(data));
       });
 
       const enrichedImages = newImages.map((img) => ({
@@ -304,7 +404,7 @@ export default function Page() {
       setParsedImages(enrichedImages);
       
       // HTML 코드도 가져오기
-      const html = await downloadHtml(englishUrl);
+      const html = await downloadHtml(finalEnglishUrl);
       setParsedImagesMap((prev) => ({
         ...prev,
         [baseUrl]: {  // 베이스 URL로 저장
@@ -352,14 +452,12 @@ export default function Page() {
         [languageCode]: {}
       }));
       StateUtils.setCacheStatus(baseUrl, languageCode, true); // 빈 데이터도 캐시로 표시
-      updateDisplayImages();
-      return;
+      return; // updateDisplayImages는 의존성으로 자동 호출됨
     }
 
     // 이미 캐시된 데이터가 있는지 확인 (베이스 URL 기준)
     if (StateUtils.isLanguageCached(baseUrl, languageCode)) {
       console.log(`Using cached data for ${languageCode}`);
-      updateDisplayImages();
       return;
     }
 
@@ -383,6 +481,9 @@ export default function Page() {
         [languageCode]: altTexts
       }));
       
+      // 🔥 추가: 언어별 HTML도 다운로드
+      const languageHtml = await downloadHtml(languageUrl);
+      
       // 캐시 상태 업데이트 (베이스 URL 기준)
       StateUtils.setCacheStatus(baseUrl, languageCode, true);
       
@@ -393,19 +494,22 @@ export default function Page() {
           ...prev,
           [baseUrl]: {
             ...currentData,
+            // 🔥 추가: 언어별 HTML 저장
+            htmlCodes: {
+              ...currentData.htmlCodes,
+              [languageCode]: languageHtml || ''
+            },
             multiLanguageData: {
               ...currentData.multiLanguageData,
               [languageCode]: {
                 language: languageCode,
-                images: altTexts
+                images: altTexts,
+                htmlCode: languageHtml || '' // 🔥 추가: 언어별 HTML도 저장
               }
             }
           }
         };
       });
-      
-      // 화면 업데이트
-      updateDisplayImages();
       
     } catch (error) {
       console.error(`Error in ${languageCode} parsing:`, error);
@@ -430,6 +534,39 @@ export default function Page() {
       setParsedImages(parsedImagesMap[baseUrl].images);
       setUrls((prev) => (prev.includes(url) ? prev : [url, ...prev]));
       console.log('Using cached data for base URL:', baseUrl);
+      
+      // 🔥 캐시된 데이터에서 상태 복원
+      const cachedData = parsedImagesMap[baseUrl];
+      if (cachedData.images.length > 0) {
+        // 영어 데이터가 있으면 마스터 데이터 복원
+        StateUtils.syncImageData(cachedData.images, 'en');
+        
+        // 다국어 데이터가 있으면 복원
+        if (cachedData.multiLanguageData) {
+          Object.entries(cachedData.multiLanguageData).forEach(([lang, data]) => {
+            if (data && typeof data === 'object' && 'images' in data) {
+              setLanguageAltTexts(prev => ({
+                ...prev,
+                [lang as LanguageCode]: data.images
+              }));
+              StateUtils.setCacheStatus(baseUrl, lang as LanguageCode, true);
+              
+              // 🔥 추가: customization 데이터도 복원
+              if (data.customizations) {
+                setLanguageCustomizations(prev => ({
+                  ...prev,
+                  [lang as LanguageCode]: {
+                    ...prev[lang as LanguageCode],
+                    ...data.customizations
+                  }
+                }));
+                console.log(`Restored ${lang} customizations:`, data.customizations);
+              }
+            }
+          });
+        }
+      }
+      
       updateDisplayImages();  // 현재 언어에 맞게 화면 업데이트
       return;
     }
@@ -451,13 +588,11 @@ export default function Page() {
       console.log(`Current language is ${currentLanguage}, fetching language-specific data...`);
       await handleLanguageParsing(url, currentLanguage);
     }
-    
-    // 화면 업데이트 (현재 언어에 맞게)
-    updateDisplayImages();
+    // 새로운 파싱 후에는 updateDisplayImages가 의존성으로 자동 호출됨
   };
 
   /**
-   * 이미지 ALT 텍스트 수정 시 => 현재 페이지 및 캐시에 반영
+   * 이미지 ALT 텍스트 수정 시 => 현재 페이지 및 캐시에 반영 (언어별 customization 지원)
    */
   const updateImageAlt = (
     id: number,
@@ -499,20 +634,57 @@ export default function Page() {
       }
     }
 
-    // 캐시 데이터도 수정
+    // 🔥 추가: customized_alt_text 언어별 처리
+    if (field === 'customized_alt_text') {
+      const targetImage = parsedImages.find(img => img.id === id);
+      if (targetImage) {
+        // 현재 언어의 customization 업데이트
+        setLanguageCustomizations(prev => ({
+          ...prev,
+          [currentLanguage]: {
+            ...prev[currentLanguage],
+            [targetImage.image_url]: value
+          }
+        }));
+        
+        console.log(`Updated ${currentLanguage} customization for image ${id}: "${value}"`);
+      }
+    }
+
+    // 🔥 캐시 데이터도 baseUrl 기준으로 수정
+    const baseUrl = URLMappingUtils.extractBaseUrl(currentUrl);
     setParsedImagesMap((prevMap) => {
-      const currentData = prevMap[currentUrl];
+      const currentData = prevMap[baseUrl];
       if (!currentData) return prevMap;
 
       const updatedImages = currentData.images.map((img) =>
         img.id === id ? { ...img, [field]: value } : img
       );
 
+      // 🔥 추가: 언어별 customization을 multiLanguageData에도 저장
+      let updatedMultiLanguageData = currentData.multiLanguageData;
+      if (field === 'customized_alt_text') {
+        const targetImage = parsedImages.find(img => img.id === id);
+        if (targetImage && updatedMultiLanguageData && updatedMultiLanguageData[currentLanguage]) {
+          updatedMultiLanguageData = {
+            ...updatedMultiLanguageData,
+            [currentLanguage]: {
+              ...updatedMultiLanguageData[currentLanguage],
+              customizations: {
+                ...updatedMultiLanguageData[currentLanguage].customizations,
+                [targetImage.image_url]: value
+              }
+            }
+          };
+        }
+      }
+
       return {
         ...prevMap,
-        [currentUrl]: {
+        [baseUrl]: {
           ...currentData,
           images: updatedImages,
+          multiLanguageData: updatedMultiLanguageData
         },
       };
     });
@@ -548,8 +720,21 @@ export default function Page() {
             loading={loading}
             setLoading={setLoading}
 
-            // 추가: Download 시 필요
-            downloadedHtml={parsedImagesMap[currentUrl]?.htmlCode || ''}
+            // 🔥 수정: 현재 언어의 HTML 전달
+            downloadedHtml={(() => {
+              const baseUrl = URLMappingUtils.extractBaseUrl(currentUrl);
+              const websiteData = parsedImagesMap[baseUrl];
+              if (!websiteData) return '';
+              
+              // 현재 언어의 HTML이 있으면 사용, 없으면 기본 HTML 사용
+              if (websiteData.htmlCodes && websiteData.htmlCodes[currentLanguage]) {
+                return websiteData.htmlCodes[currentLanguage];
+              }
+              if (websiteData.multiLanguageData && websiteData.multiLanguageData[currentLanguage]?.htmlCode) {
+                return websiteData.multiLanguageData[currentLanguage].htmlCode;
+              }
+              return websiteData.htmlCode; // fallback to default HTML
+            })()}
             setParsedImagesMap={setParsedImagesMap}
           />
         </div>

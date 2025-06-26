@@ -97,10 +97,11 @@ export class URLMappingUtils {
   /**
    * 자동 매핑 생성 로직 (더 이상 사용하지 않음 - null 매핑으로 대체)
    */
-  static async generateAutoMapping(baseUrl: string, languageCode: LanguageCode): Promise<string | null> {
-    // 영어인 경우에만 원본 URL 반환, 나머지는 null
-    return languageCode === 'en' ? baseUrl : null;
-  }
+  // 🚫 더 이상 사용하지 않음 - null 매핑 정책으로 대체됨
+  // static async generateAutoMapping(baseUrl: string, languageCode: LanguageCode): Promise<string | null> {
+  //   // 영어인 경우에만 원본 URL 반환, 나머지는 null
+  //   return languageCode === 'en' ? baseUrl : null;
+  // }
   
   /**
    * 해당 URL에서 지원하는 언어 목록 가져오기
@@ -139,16 +140,17 @@ export class URLMappingUtils {
   /**
    * JSON 파일에 매핑 저장 (클라이언트에서는 localStorage 사용)
    */
-  static async saveMappingToStorage(baseUrl: string, mapping: LanguageMapping): Promise<void> {
-    try {
-      const savedMappings = localStorage.getItem('customUrlMappings');
-      const customMappings = savedMappings ? JSON.parse(savedMappings) : {};
-      customMappings[baseUrl] = mapping;
-      localStorage.setItem('customUrlMappings', JSON.stringify(customMappings));
-    } catch (error) {
-      console.error('Failed to save mapping to storage:', error);
-    }
-  }
+  // 🚫 더 이상 사용하지 않음 - 현재 런타임에서만 매핑 관리
+  // static async saveMappingToStorage(baseUrl: string, mapping: LanguageMapping): Promise<void> {
+  //   try {
+  //     const savedMappings = localStorage.getItem('customUrlMappings');
+  //     const customMappings = savedMappings ? JSON.parse(savedMappings) : {};
+  //     customMappings[baseUrl] = mapping;
+  //     localStorage.setItem('customUrlMappings', JSON.stringify(customMappings));
+  //   } catch (error) {
+  //     console.error('Failed to save mapping to storage:', error);
+  //   }
+  // }
   
   /**
    * localStorage에서 커스텀 매핑 로드
@@ -169,12 +171,13 @@ export class URLMappingUtils {
   /**
    * URL 정규화 (프로토콜 제거, www 제거 등)
    */
-  static normalizeUrl(url: string): string {
-    return url
-      .replace(/^https?:\/\//, '')
-      .replace(/^www\./, '')
-      .replace(/\/$/, '');
-  }
+  // 🚫 더 이상 사용하지 않음 - extractBaseUrl 함수로 대체
+  // static normalizeUrl(url: string): string {
+  //   return url
+  //     .replace(/^https?:\/\//, '')
+  //     .replace(/^www\./, '')
+  //     .replace(/\/$/, '');
+  // }
   
   /**
    * 베이스 URL 추출 (언어 경로 제거)

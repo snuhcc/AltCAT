@@ -50,7 +50,7 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
   return (
     <>
       <div
-        className={`relative bg-gradient-to-b from-[#283342] to-[#1B2A38] text-white flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`relative bg-gradient-to-b from-gray-400 to-gray-500 text-white flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
           isHidden ? 'w-0' : 'w-[300px]'
         }`}
         style={!isHidden ? { width: `${sidebarWidth}px` } : undefined}
@@ -58,25 +58,21 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
         {/* Resizer */}
         {!isHidden && (
           <div
-            className="absolute top-0 right-0 h-full w-3 cursor-col-resize bg-transparent hover:bg-gray-700 transition-colors duration-200"
+            className="absolute top-0 right-0 h-full w-3 cursor-col-resize bg-transparent hover:bg-orange-400 transition-colors duration-200"
             onMouseDown={handleMouseDown}
           ></div>
         )}
 
-        {/* Logo */}
-        <div className="flex items-center p-4 bg-[#1B2A38]">
-          <Image
-            src="/cat-logo.svg" // Local image path
-            alt="Logo"
-            width={40}
-            height={40}
-            className="rounded-full mr-3"
-          />
-          <span className="text-xl font-bold">AltCAT AI</span>
+        {/* Dashboard Header */}
+        <div className="p-4 bg-gray-500">
+          <div className="flex items-center gap-2 font-bold text-lg">
+            {dashboard_icon}
+            Dashboard
+          </div>
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-gray-600"></div>
+        <div className="h-px bg-gray-400"></div>
 
         {/* Profile */}
         <div className="flex items-center p-4">
@@ -88,37 +84,29 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
             className="rounded-sm mr-3"
           />
           <div className="flex flex-col">
-            <span className="font-semibold">James</span>
-            <span className="text-xs text-[#FED600]">james2025</span>
+            <span className="font-semibold">Bob</span>
           </div>
         </div>
 
         {/* Scrollable Links */}
-        <div className="flex-grow bg-gray-900 px-2 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-900">
+        <div className="flex-grow bg-gray-600 px-2 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-600">
           {/* Sticky Header */}
-          <div className="sticky top-0 bg-gray-900 z-10">
-            <div className="flex flex-col gap-2 pt-4 px-4">
-              <div className="flex items-center gap-2 font-bold text-lg">
-                {dashboard_icon}
-                Dashboard
-              </div>
-            </div>
-
+          <div className="sticky top-0 bg-gray-600 z-10">
             {/* Current URL */}
-            <div className="my-2 text-sm bg-[#009099] p-2 font-semibold flex items-center rounded">
+            <div className="my-2 text-sm bg-orange-500 p-2 font-semibold flex items-center rounded">
               <span className="pr-2 font-bold truncate">{currentUrl}</span>
             </div>
 
             {/* Separator */}
-            <div className="h-1 bg-gray-700 mx-2 my-2 rounded"></div>
+            <div className="h-1 bg-gray-400 mx-2 my-2 rounded"></div>
           </div>
 
           {/* URL List */}
           {urls.map((u, index) => (
             <div key={index}>
               <div
-                className={`p-2 py-4 cursor-pointer rounded hover:bg-[#009099] transition-colors duration-200 ${
-                  currentUrl === u ? 'bg-[#009099]' : ''
+                className={`p-2 py-4 cursor-pointer rounded hover:bg-orange-400 transition-colors duration-200 ${
+                  currentUrl === u ? 'bg-orange-500' : ''
                 }`}
                 onClick={() => onSelectUrl(u)}
               >
@@ -128,12 +116,22 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
           ))}
         </div>
 
-
+        {/* Logo at Bottom */}
+        <div className="flex items-center justify-center py-2 px-4 bg-gray-500 border-t border-gray-400">
+          <span className="text-xl font-bold mr-3">AltCAT AI</span>
+          <Image
+            src="/cat.png" // Local image path
+            alt="Logo"
+            width={55}
+            height={55}
+            className="rounded-full"
+          />
+        </div>
 
         {/* Hide Sidebar Button */}
         {!isHidden && (
           <button
-            className="absolute top-4 right-2 w-8 h-8 bg-gray-600 hover:bg-gray-700 text-white flex items-center justify-center rounded-full shadow-lg transition-colors duration-300"
+            className="absolute top-4 right-2 w-8 h-8 bg-gray-400 hover:bg-orange-400 text-white flex items-center justify-center rounded-full shadow-lg transition-colors duration-300"
             onClick={toggleSidebar}
             aria-label="Hide Sidebar"
           >
@@ -145,7 +143,7 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
       {/* Thin Bar When Hidden */}
       {isHidden && (
         <button
-          className="absolute top-1/2 left-0 transform -translate-y-1/2 w-4 h-20 bg-gray-600 hover:bg-gray-500 flex items-center justify-center rounded-r-lg cursor-pointer z-50 transition-colors duration-500 ease-in-out"
+          className="absolute top-1/2 left-0 transform -translate-y-1/2 w-4 h-20 bg-gray-400 hover:bg-orange-400 flex items-center justify-center rounded-r-lg cursor-pointer z-50 transition-colors duration-500 ease-in-out"
           onClick={toggleSidebar}
           aria-label="Show Sidebar"
         >

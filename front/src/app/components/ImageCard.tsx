@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ParsedImage } from '../types';
 import { regenerateImage, translateToCultureAware } from '../api';
 
@@ -41,9 +41,26 @@ export default function ImageCard({ image, currentLanguage, updateImageAlt }: Im
   // const [isAIModifiedLoading, setIsAIModifiedLoading] = useState(false);
   const [isCultureAwareLoading, setIsCultureAwareLoading] = useState(false);  // 추가 (2025.06.25)
 
-  // 상태별 스타일
+  // 🔥 추가: 초기 색상 상태 (previous_alt_text 변경 시 업데이트)
+  const [initialColorStatus, setInitialColorStatus] = useState<'green' | 'red' | null>(null);
+
+  // 🔥 초기 색상 상태 결정 (previous_alt_text가 바뀔 때마다 재계산)
+  useEffect(() => {
+    const hasAltText = previous_alt_text && previous_alt_text.trim() !== '';
+    const newStatus = hasAltText ? 'green' : 'red';
+    
+    // 상태가 실제로 바뀔 때만 업데이트 (불필요한 리렌더링 방지)
+    if (initialColorStatus !== newStatus) {
+      setInitialColorStatus(newStatus);
+    }
+  }, [previous_alt_text, initialColorStatus]); // previous_alt_text 의존성 추가
+
+  // 상태별 스타일 (고정된 초기 상태 사용)
   const getStatusStyles = () => {
-    if (previous_alt_text && previous_alt_text.trim() !== '') {
+    // 🔥 수정: 고정된 초기 상태를 사용하여 색상 결정
+    const colorStatus = initialColorStatus || (previous_alt_text && previous_alt_text.trim() !== '' ? 'green' : 'red');
+    
+    if (colorStatus === 'green') {
       return {
         borderColor: 'border-green-400',
         bgColor: 'bg-green-100',
@@ -87,17 +104,34 @@ export default function ImageCard({ image, currentLanguage, updateImageAlt }: Im
 
   // 추가 (2025.06.25) 표시 텍스트 결정 함수
   const getDisplayedGeneratedText = () => {
-    const isOriginalAltEmpty = !previous_alt_text || previous_alt_text.trim() === '';
-    
-    if (isOriginalAltEmpty) {
-      return getDefaultValue(ai_generated_alt_text, 'None');
-    } else {
-      return getDefaultValue(ai_modified_alt_text, 'None');
-    }
+    // 🔥 백엔드 로직 변경: generate 또는 modify 중 하나만 수행됨
+    // 실제로 생성된 텍스트를 표시
+    const generatedText = ai_generated_alt_text || ai_modified_alt_text || '';
+    return getDefaultValue(generatedText, 'None');
   };
 
+  // 🔥 실제 AI 생성 텍스트 반환 (Culture Aware 번역용)
+  const getActualAIText = () => {
+    return ai_generated_alt_text || ai_modified_alt_text || '';
+  };
 
-  // Customized Alt 변경
+  // 🔥 추가: 현재 언어의 customization 가져오기
+  const getCurrentCustomization = () => {
+    const currentLang = currentLanguage || 'en';
+    return image.customized_alt_texts?.[currentLang] || '';
+  };
+
+  // 추가 (2025.06.25) 표시 텍스트 결정 함수
+  const getDisplayedCultureAwareText = () => {
+    // 영어인 경우 비어있는 상태로 표시
+    if (currentLanguage === 'en') {
+      return 'None';
+    }
+    
+    return getDefaultValue(culture_aware_alt_text, 'None');
+  };
+
+  // Customized Alt 변경 (언어별 지원)
   const handleCustomizedAltChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     updateImageAlt(id, 'customized_alt_text', e.target.value);
   };
@@ -131,11 +165,11 @@ export default function ImageCard({ image, currentLanguage, updateImageAlt }: Im
     
     setIsCultureAwareLoading(true);
     try {
-      // AI-Generated Alt Text를 기준으로 번역
-      const englishText = ai_generated_alt_text || '';
+      // 🔥 실제로 생성된 AI 텍스트를 기준으로 번역
+      const englishText = getActualAIText();
       
       if (!englishText.trim()) {
-        console.log('No English alt-text available for translation');
+        console.log('No AI generated alt-text available for translation');
         return;
       }
       
@@ -160,21 +194,24 @@ export default function ImageCard({ image, currentLanguage, updateImageAlt }: Im
   const handleRegenerateAIGenerated = async () => {
     setIsAIGeneratedLoading(true);
     try {
-      const isOriginalAltEmpty = !previous_alt_text || previous_alt_text.trim() === '';
+      // 🔥 백엔드에서 original alt text 여부에 따라 generate/modify 자동 결정
+      // 프론트엔드는 단순히 현재 상태를 전달
+      const originalAlt = previous_alt_text || '';
+      const customizedAlt = customized_alt_text || '';
       
-      if (isOriginalAltEmpty) {
-        // 기존 alt-text가 없음 → Generate 작업
-        const data = await regenerateImage(image_url, '', '');
-        if (data && data.ai_generated_alt_text) {
+      console.log(`Regenerating with original: "${originalAlt}"`);
+      
+      const data = await regenerateImage(image_url, originalAlt, customizedAlt);
+      
+      if (data) {
+        // 백엔드에서 generate 또는 modify 중 하나만 반환됨
+        if (data.ai_generated_alt_text) {
           updateImageAlt(id, 'ai_generated_alt_text', data.ai_generated_alt_text);
+          console.log('Updated ai_generated_alt_text:', data.ai_generated_alt_text);
         }
-      } else {
-        // 기존 alt-text가 있음 → Modify 작업  
-        const customizedAlt = customized_alt_text || '';
-        const originalAlt = getDefaultValue(previous_alt_text, 'None');
-        const data = await regenerateImage(image_url, originalAlt, customizedAlt);
-        if (data && data.ai_modified_alt_text) {
+        if (data.ai_modified_alt_text) {
           updateImageAlt(id, 'ai_modified_alt_text', data.ai_modified_alt_text);
+          console.log('Updated ai_modified_alt_text:', data.ai_modified_alt_text);
         }
       }
     } catch (error) {
@@ -290,10 +327,7 @@ export default function ImageCard({ image, currentLanguage, updateImageAlt }: Im
           {/* Original Alt Text */}
           <div>
             <label className="block mb-1 text-xs font-semibold text-gray-700">
-              Original Alt Text 
-              {currentLanguage && currentLanguage !== 'en' && (
-                <span className="text-blue-600 ml-1">({getLanguageDisplayName(currentLanguage)})</span>
-              )}
+              Original Alt Text
             </label>
             <textarea
               value={getDefaultValue(previous_alt_text, 'None')}
@@ -306,7 +340,6 @@ export default function ImageCard({ image, currentLanguage, updateImageAlt }: Im
           <div>
             <label className="block mb-1 text-xs font-semibold text-gray-700">
               AI-Generated Alt Text
-              <span className="text-green-600 ml-1">(Based on English)</span>
             </label>
             <div className="flex items-center">
               <textarea
@@ -333,20 +366,24 @@ export default function ImageCard({ image, currentLanguage, updateImageAlt }: Im
             </div>
           </div>
 
-          {/* Culture Aware Alt Text */}
+          {/* Translated Alt Text */}
           <div>
             <label className="block mb-1 text-xs font-semibold text-gray-700">
-              Culture Aware Alt Text
+              Translated Alt Text
+              {/* 🔥 추가: 현재 언어 표시 (Customization에서 이동) */}
+              {currentLanguage && currentLanguage !== 'en' && (
+                <span className="text-purple-600 ml-1">({getLanguageDisplayName(currentLanguage)})</span>
+              )}
             </label>
             <div className="flex items-center">
               <textarea
-                value={getDefaultValue(culture_aware_alt_text, 'None')}
+                value={getDisplayedCultureAwareText()}
                 readOnly
                 className="border border-gray-300 rounded-md px-3 py-1 bg-gray-50 text-xs h-12 resize-none overflow-y-auto flex-1"
               />
               <button
                 onClick={handleRegenerateCultureAware}
-                className="ml-2 p-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center justify-center"
+                className="ml-2 p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center"
                 disabled={isCultureAwareLoading}
               >
                 <div className="relative w-5 h-5 flex items-center justify-center">
@@ -360,14 +397,15 @@ export default function ImageCard({ image, currentLanguage, updateImageAlt }: Im
             </div>
           </div>
 
-          {/* Customized Alt Text */}
+          {/* Customization */}
           <div>
             <label className="block mb-1 text-xs font-semibold text-gray-700">
-              Customized Alt Text
+              Customization
             </label>
             <textarea
-              value={customized_alt_text ?? ''}
+              value={getCurrentCustomization()} // 🔥 수정: 현재 언어의 customization 사용
               onChange={handleCustomizedAltChange}
+              placeholder={`Enter customization for ${getLanguageDisplayName(currentLanguage)}...`} // 🔥 추가: 언어별 placeholder
               className="border border-gray-300 rounded-md px-3 py-1 bg-white text-xs h-12 resize-none overflow-y-auto w-full"
             />
           </div>
