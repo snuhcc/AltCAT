@@ -39,6 +39,7 @@ export default function TopBar({ currentUrl, currentLanguage, onUrlChange, onSub
   const [inputValue, setInputValue] = useState<string>(currentUrl);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
   const [supportedLanguages, setSupportedLanguages] = useState<LanguageCode[]>(['en']); // 기본값으로 영어만
+  const [pendingLanguage, setPendingLanguage] = useState<LanguageCode | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // 지원 언어 목록 가져오기
@@ -64,8 +65,9 @@ export default function TopBar({ currentUrl, currentLanguage, onUrlChange, onSub
     fetchSupportedLanguages();
   }, [currentUrl, currentLanguage]);
 
-  // 현재 선택된 언어 정보 가져오기
-  const selectedLanguageInfo = languageInfo[currentLanguage] || languageInfo.en;
+  // 현재 선택된 언어 정보 가져오기 (pendingLanguage가 있으면 우선 표시)
+  const displayLanguage = pendingLanguage || currentLanguage;
+  const selectedLanguageInfo = languageInfo[displayLanguage] || languageInfo.en;
 
   // 🚫 더 이상 사용하지 않음 - 지원되는 언어만 표시
   // const availableLanguages = supportedLanguages.map(code => ({
@@ -95,12 +97,23 @@ export default function TopBar({ currentUrl, currentLanguage, onUrlChange, onSub
     setInputValue(currentUrl);
   }, [currentUrl]);
 
+  // currentLanguage가 변경되면 pendingLanguage 초기화
+  useEffect(() => {
+    setPendingLanguage(null);
+  }, [currentLanguage]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const trimmedValue = inputValue.trim();
       if (trimmedValue) {
         onUrlChange(trimmedValue);
         onSubmit(trimmedValue);
+        
+        // pending된 언어가 있으면 함께 적용
+        if (pendingLanguage) {
+          onLanguageChange(pendingLanguage);
+          setPendingLanguage(null);
+        }
       }
     }
   };
@@ -110,13 +123,19 @@ export default function TopBar({ currentUrl, currentLanguage, onUrlChange, onSub
     if (trimmedValue) {
       onUrlChange(trimmedValue);
       onSubmit(trimmedValue);
+      
+      // pending된 언어가 있으면 함께 적용
+      if (pendingLanguage) {
+        onLanguageChange(pendingLanguage);
+        setPendingLanguage(null);
+      }
     }
   };
 
   const handleLanguageSelect = (language: typeof allLanguages[0]) => {
     setIsLanguageDropdownOpen(false);
-    console.log('Selected language:', language.code);
-    onLanguageChange(language.code as LanguageCode);
+    console.log('Selected language (pending):', language.code);
+    setPendingLanguage(language.code as LanguageCode); // 즉시 적용하지 않고 pending 상태로 설정
   };
 
   // 🚫 더 이상 사용하지 않을 수 있음 - 지원되지 않는 언어 선택 시 처리 로직
@@ -217,7 +236,7 @@ export default function TopBar({ currentUrl, currentLanguage, onUrlChange, onSub
           {isLanguageDropdownOpen && (
             <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50">
               {allLanguages.map((language) => {
-                const isSelected = currentLanguage === language.code;
+                const isSelected = (pendingLanguage || currentLanguage) === language.code;
                 const isSupported = supportedLanguages.includes(language.code);
                 
                 return (
