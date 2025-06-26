@@ -9,7 +9,7 @@ import { fetchImages, downloadHtml, fetchAltTextsOnly, translateToCultureAware }
 import { LanguageCode, URLMappingUtils } from './urlMappings';
 
 export default function Page() {
-  const [currentUrl, setCurrentUrl] = useState<string>('https://www.google.com/');
+  const [currentUrl, setCurrentUrl] = useState<string>('https://assets25.sigaccess.org/');
   const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>('en'); // 현재 선택된 언어
   const [parsedImagesMap, setParsedImagesMap] = useState<ParsedImagesMap>({});
   const [parsedImages, setParsedImages] = useState<ParsedImage[]>([]);
@@ -34,6 +34,7 @@ export default function Page() {
   });
   
   const [loading, setLoading] = useState<boolean>(false);
+  const [translationLoading, setTranslationLoading] = useState<boolean>(false); // 🔥 번역 로딩 상태 추가
   const [urls, setUrls] = useState<string[]>([]);
   
   // 캐시된 다국어 데이터
@@ -232,8 +233,8 @@ export default function Page() {
   // 🔥 새로 추가: parsedImages 업데이트 후 자동 Culture Aware 번역 수행
   useEffect(() => {
     const performAutoTranslation = async () => {
-      // 🔥 조건을 더 엄격하게: 영어가 아니고, 이미지가 있고, 로딩 중이 아니고, 실제로 번역할 이미지가 있을 때만 실행
-      if (currentLanguage !== 'en' && parsedImages.length > 0 && !loading) {
+      // 🔥 조건을 더 엄격하게: 영어가 아니고, 이미지가 있고, 로딩 중이 아니고, 번역 중이 아니고, 실제로 번역할 이미지가 있을 때만 실행
+      if (currentLanguage !== 'en' && parsedImages.length > 0 && !loading && !translationLoading) {
         // 번역이 필요한 이미지가 실제로 있는지 먼저 확인
         const needsTranslation = parsedImages.some(image => {
           const actualAIText = image.ai_generated_alt_text || image.ai_modified_alt_text || '';
@@ -252,7 +253,7 @@ export default function Page() {
     // 🔥 디바운스 효과: 약간의 지연을 두어 연속 실행 방지
     const timeoutId = setTimeout(performAutoTranslation, 300);
     return () => clearTimeout(timeoutId);
-  }, [parsedImages, currentLanguage, loading]); // parsedImages가 변경될 때마다 실행
+  }, [parsedImages, currentLanguage, loading, translationLoading]); // 🔥 translationLoading 의존성 추가
 
   // 메모리 정리 (컴포넌트 언마운트 시)
   useEffect(() => {
@@ -325,26 +326,58 @@ export default function Page() {
 
     console.log(`Performing auto culture-aware translation to ${targetLanguage} for ${imagesToTranslate.length} images`);
     
-    // 필터링된 이미지 목록에 대해 번역 수행
-    const translationPromises = imagesToTranslate.map(async (image) => {
-      // 🔥 실제로 생성된 AI 텍스트 사용
-      const englishText = image.ai_generated_alt_text || image.ai_modified_alt_text || '';
-      
-      try {
-        const translated = await translateToCultureAware(englishText, targetLanguage);
-        if (translated) {
-          // updateImageAlt 함수를 통해 상태 업데이트
-          updateImageAlt(image.id, 'culture_aware_alt_text', translated);
-          console.log(`Auto-translated image ${image.id}: "${englishText}" -> "${translated}"`);
+    // 🔥 번역 로딩 상태 시작
+    setTranslationLoading(true);
+    
+    try {
+      // 🔥 개선: 모든 번역을 병렬로 수행하고 결과를 수집
+      const translationPromises = imagesToTranslate.map(async (image) => {
+        // 🔥 실제로 생성된 AI 텍스트 사용
+        const englishText = image.ai_generated_alt_text || image.ai_modified_alt_text || '';
+        
+        try {
+          const translated = await translateToCultureAware(
+            englishText, 
+            targetLanguage, 
+            image.image_url || undefined, 
+            image.image_type || undefined
+          );
+          
+          if (translated) {
+            console.log(`Auto-translated image ${image.id}: "${englishText}" -> "${translated}"`);
+            return { imageId: image.id, translatedText: translated };
+          } else {
+            console.error(`Translation failed for image ${image.id} - no result returned`);
+            return null;
+          }
+        } catch (error) {
+          console.error(`Auto-translation failed for image ${image.id}:`, error);
+          return null;
         }
-      } catch (error) {
-        console.error(`Auto-translation failed for image ${image.id}:`, error);
-      }
-    });
+      });
 
-    // 모든 번역이 완료될 때까지 대기
-    await Promise.all(translationPromises);
-    console.log(`Auto culture-aware translation completed for ${targetLanguage}`);
+      // 🔥 모든 번역이 완료될 때까지 대기
+      const translationResults = await Promise.all(translationPromises);
+      
+      // 🔥 성공한 번역들을 한 번에 업데이트
+      const successfulTranslations = translationResults.filter(result => result !== null);
+      
+      if (successfulTranslations.length > 0) {
+        console.log(`Applying ${successfulTranslations.length} translations to UI...`);
+        
+        // 🔥 모든 번역을 한 번에 적용
+        successfulTranslations.forEach(({ imageId, translatedText }) => {
+          updateImageAlt(imageId, 'culture_aware_alt_text', translatedText);
+        });
+        
+        console.log(`Auto culture-aware translation completed for ${targetLanguage} - ${successfulTranslations.length}/${imagesToTranslate.length} successful`);
+      } else {
+        console.log('No translations were successful');
+      }
+    } finally {
+      // 🔥 번역 로딩 상태 종료
+      setTranslationLoading(false);
+    }
   };
 
   /**
@@ -719,6 +752,7 @@ export default function Page() {
             currentUrl={currentUrl}
             loading={loading}
             setLoading={setLoading}
+            translationLoading={translationLoading}
 
             // 🔥 수정: 현재 언어의 HTML 전달
             downloadedHtml={(() => {

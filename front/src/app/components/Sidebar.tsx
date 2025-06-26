@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import { URLMappingUtils, type LanguageCode } from '../urlMappings';
 
 interface SidebarProps {
   currentUrl: string;
@@ -9,13 +10,50 @@ interface SidebarProps {
   urls: string[];
 }
 
+// 언어별 국기 매핑
+const flagMap: Record<LanguageCode, string> = {
+  en: '🇺🇸',
+  ko: '🇰🇷', 
+  zh: '🇨🇳',
+  es: '🇪🇸'
+};
+
+// 각 URL의 지원 언어를 저장하는 상태
+interface UrlLanguages {
+  [url: string]: LanguageCode[];
+}
+
 export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps) {
   const [sidebarWidth, setSidebarWidth] = useState<number>(300);
   const [isHidden, setIsHidden] = useState<boolean>(false);
+  const [urlLanguages, setUrlLanguages] = useState<UrlLanguages>({});
   const isResizing = useRef<boolean>(false);
 
   const MIN_WIDTH = 250;
   const MAX_WIDTH = 400;
+
+  // URL별 지원 언어 로드
+  useEffect(() => {
+    const loadLanguages = async () => {
+      const languageMap: UrlLanguages = {};
+      
+      for (const url of urls) {
+        try {
+          const supportedLanguages = await URLMappingUtils.getSupportedLanguages(url);
+          languageMap[url] = supportedLanguages;
+        } catch (error) {
+          console.error(`Failed to load languages for ${url}:`, error);
+          languageMap[url] = ['en']; // 기본값으로 영어만 설정
+        }
+      }
+      
+      setUrlLanguages(languageMap);
+    };
+
+    if (urls.length > 0) {
+      loadLanguages();
+    }
+  }, [urls]);
 
   const handleMouseDown = () => {
     isResizing.current = true;
@@ -93,8 +131,20 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
           {/* Sticky Header */}
           <div className="sticky top-0 bg-gray-500 z-10">
             {/* Current URL */}
-            <div className="my-2 text-sm p-2 font-semibold flex items-center rounded" style={{ backgroundColor: '#FFA500' }}>
-              <span className="pr-2 font-bold truncate">{currentUrl}</span>
+            <div className="my-2 text-sm p-2 font-semibold flex items-center justify-between rounded" style={{ backgroundColor: '#FFA500' }}>
+              <span className="pr-2 font-bold truncate flex-1">{currentUrl}</span>
+              {/* 현재 URL의 국기들 */}
+              <div className="flex gap-1">
+                {urlLanguages[currentUrl]?.map((lang) => (
+                  <span 
+                    key={lang} 
+                    className="text-sm bg-white bg-opacity-20 rounded-full px-1 py-0.5 backdrop-blur-sm shadow-sm"
+                    title={lang.toUpperCase()}
+                  >
+                    {flagMap[lang]}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {/* Separator */}
@@ -105,7 +155,7 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
           {urls.map((u, index) => (
             <div key={index}>
               <div
-                className={`p-2 py-4 cursor-pointer rounded transition-colors duration-200`}
+                className={`p-2 py-4 cursor-pointer rounded transition-colors duration-200 flex items-center justify-between`}
                 style={{
                   backgroundColor: currentUrl === u ? '#FFA500' : 'transparent'
                 }}
@@ -121,7 +171,19 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
                 }}
                 onClick={() => onSelectUrl(u)}
               >
-                {u}
+                <span className="truncate flex-1 pr-2">{u}</span>
+                {/* 국기들 */}
+                <div className="flex gap-1 flex-shrink-0">
+                  {urlLanguages[u]?.map((lang) => (
+                    <span 
+                      key={lang} 
+                      className="text-xs bg-white bg-opacity-10 hover:bg-opacity-20 rounded-full px-1.5 py-0.5 backdrop-blur-sm shadow-sm transition-all duration-200"
+                      title={lang.toUpperCase()}
+                    >
+                      {flagMap[lang]}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           ))}

@@ -153,18 +153,32 @@ export async function downloadHtml(url: string): Promise<string | null> {
  */
 export const translateToCultureAware = async (
   englishAltText: string, 
-  targetLanguage: string
+  targetLanguage: string,
+  imageUrl?: string,
+  imageType?: string
 ): Promise<string | null> => {
   try {
     console.log('Culture-aware translation request:', { 
       englishAltText, 
-      targetLanguage 
+      targetLanguage,
+      imageUrl,
+      imageType
     });
     
-    const response = await axios.post("http://127.0.0.1:8000/api/translate_culture_aware", {
+    const requestBody: any = {
       english_alt_text: englishAltText,
       target_language: targetLanguage
-    });
+    };
+    
+    // image_url과 image_type이 있으면 추가
+    if (imageUrl) {
+      requestBody.image_url = imageUrl;
+    }
+    if (imageType) {
+      requestBody.image_type = imageType;
+    }
+    
+    const response = await axios.post("http://127.0.0.1:8000/api/translate_culture_aware", requestBody);
     
     console.log('Culture-aware translation response:', response.data);
     

@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
-from llm.client import get_ai_generated_alt_text, translate_culture_aware
+from llm.client import get_ai_generated_alt_text
+from llm.translator import translate_with_pipeline
 from parser.parser import parse_page, download_html
 from schemas.alt_text import *
 from schemas.parser import *
@@ -209,28 +210,53 @@ async def parse_webpage_generate_alt_text_endpoint(request: ParserRequest):
 @app.post("/api/translate_culture_aware", response_model=CultureAwareTranslationResponse)
 async def translate_culture_aware_endpoint(request: CultureAwareTranslationRequest):
     """
-    영어 alt-text를 문화적 특성을 고려하여 번역
+    영어 alt-text를 문화적 특성을 고려하여 번역 - 새로운 TranslatorPipeline 사용
     """
     try:
-        # 지원하는 언어 검증
-        supported_languages = ['ko', 'es', 'zh']
-        if request.target_language not in supported_languages:
+        # 지원하는 언어 검증 및 언어명 매핑
+        language_to_name = {
+            'ko': 'Korean',
+            'es': 'Spanish', 
+            'zh': 'Chinese'
+        }
+        
+        if request.target_language not in language_to_name:
             raise HTTPException(
                 status_code=400, 
-                detail=f"지원하지 않는 언어입니다. 지원 언어: {supported_languages}"
+                detail=f"지원하지 않는 언어입니다. 지원 언어: {list(language_to_name.keys())}"
             )
         
-        # 번역 수행
-        translated_text = await translate_culture_aware(
-            request.english_alt_text,
-            request.target_language
+        # 🔥 언어 코드를 언어명으로 변환
+        target_language_name = language_to_name[request.target_language]
+        
+        # 🔥 image_url이 없으면 에러 발생 (디버깅을 위해 fallback 제거)
+        if not request.image_url:
+            raise HTTPException(
+                status_code=400,
+                detail="image_url이 필요합니다. Vision API를 사용하려면 유효한 이미지 URL을 제공해야 합니다."
+            )
+        
+        image_type = request.image_type or "informative"
+        
+        logging.info(f"Starting translation with new pipeline: {request.english_alt_text} -> {request.target_language} ({target_language_name})")
+        
+        # 새로운 TranslatorPipeline 호출 (언어명으로 전달)
+        result = await translate_with_pipeline(
+            original_alt_text=request.english_alt_text,
+            target_language_name=target_language_name,  # 🔥 언어명만 전달
+            image_url=request.image_url,
+            image_type=image_type
         )
         
+        # 🔥 TranslatorPipeline 결과를 CultureAwareTranslationResponse로 변환
         return CultureAwareTranslationResponse(
             original_text=request.english_alt_text,
-            translated_text=translated_text,
-            target_language=request.target_language
+            translated_text=result.get('translated_text', request.english_alt_text),
+            target_language=request.target_language,  # 🔥 원래 언어 코드는 response에서만 사용
+            guidelines=result.get('guidelines'),
+            evaluation=result.get('evaluation')
         )
+        
     except HTTPException:
         # HTTPException은 그대로 재발생
         raise

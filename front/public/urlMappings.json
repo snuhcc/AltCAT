@@ -5,6 +5,18 @@
       "ko": null,
       "zh": null,
       "es": "https://www.uscis.gov/es"
+    },
+    "https://assets25.sigaccess.org/": {
+      "en": "https://assets25.sigaccess.org/",
+      "ko": null,
+      "zh": null,
+      "es": null
+    },
+    "https://www.hansik.or.kr/board/re/list/323?menuSn=193&language=en_US": {
+      "en": "https://www.hansik.or.kr/board/re/list/323?menuSn=193&language=en_US",
+      "ko": "https://www.hansik.or.kr/board/re/list/323?menuSn=193&language=ko_KR",
+      "zh": null,
+      "es": null
     }
   },
   "defaultPatterns": {

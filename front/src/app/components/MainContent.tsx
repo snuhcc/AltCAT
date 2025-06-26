@@ -22,6 +22,7 @@ interface MainContentProps {
   currentUrl: string;
   loading: boolean;
   setLoading: (loading: boolean) => void;
+  translationLoading?: boolean;
 
   downloadedHtml: string;
   setParsedImagesMap: React.Dispatch<React.SetStateAction<any>>;
@@ -34,6 +35,7 @@ export default function MainContent({
   currentUrl,
   loading,
   setLoading,
+  translationLoading,
   downloadedHtml,
   setParsedImagesMap
 }: MainContentProps) {
@@ -189,14 +191,27 @@ export default function MainContent({
             )}
           </div>
         ) : (
-          parsedImages.map((parsedImage) => (
-            <ImageCard
-              key={parsedImage.id}
-              image={parsedImage}
-              updateImageAlt={updateImageAlt}
-              currentLanguage={currentLanguage}
-            />
-          ))
+          <>
+            {translationLoading && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full border-4 border-blue-500 border-t-transparent w-6 h-6 mr-3"></div>
+                  <span className="text-blue-700 font-medium">
+                    Translating alt-text to {currentLanguage?.toUpperCase() || 'target language'}...
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {parsedImages.map((parsedImage) => (
+              <ImageCard
+                key={parsedImage.id}
+                image={parsedImage}
+                updateImageAlt={updateImageAlt}
+                currentLanguage={currentLanguage}
+              />
+            ))}
+          </>
         )}
       </div>
 

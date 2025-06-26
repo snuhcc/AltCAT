@@ -175,7 +175,12 @@ export default function ImageCard({ image, currentLanguage, updateImageAlt }: Im
       
       console.log(`Translating to ${currentLanguage}: "${englishText}"`);
       
-      const translated = await translateToCultureAware(englishText, currentLanguage);
+      const translated = await translateToCultureAware(
+        englishText, 
+        currentLanguage, 
+        image_url || undefined, 
+        image_type || undefined
+      );
       
       if (translated) {
         updateImageAlt(id, 'culture_aware_alt_text', translated);

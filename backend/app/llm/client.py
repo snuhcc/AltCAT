@@ -205,78 +205,93 @@ async def get_ai_generated_alt_text(image_url: str, alt_text: str, is_button:boo
         print(error_trace)
         raise HTTPException(status_code=500, detail=f"Error in {get_ai_generated_alt_text.__name__}: {str(e)}")
 
-def create_translation_messages(prompt_name: str, english_alt_text: str):
-    """
-    Culture-aware translation을 위한 메시지 생성
-    """
-    prompts = load_prompts()
-    selected_prompt = get_prompt(prompts, prompt_name)
-    
-    system_prompt = selected_prompt["system_prompt"]
-    user_prompt_template = selected_prompt["user_prompt"]
-    
-    formatted_user_prompt = user_prompt_template.format(
-        english_alt_text=english_alt_text
-    )
-    
-    logging.info(f"Translation prompt: {formatted_user_prompt}")
-    
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": formatted_user_prompt}
-    ]
-    
-    return messages
+# =============================================================================
+# 🚫 DEPRECATED: 기존 번역 로직 (새로운 translator 모듈로 대체 예정)
+# =============================================================================
 
-def translate_culture_aware_sync(english_alt_text: str, target_language: str):
-    """
-    영어 alt-text를 문화적 특성을 고려하여 번역하는 동기 함수
-    """
-    client = ai.Client()
+# def create_translation_messages(prompt_name: str, english_alt_text: str):
+#     """
+#     Culture-aware translation을 위한 메시지 생성
+#     """
+#     prompts = load_prompts()
+#     selected_prompt = get_prompt(prompts, prompt_name)
     
-    # 언어별 프롬프트 매핑
-    prompt_mapping = {
-        'ko': PROMPT_NAME_CULTURE_AWARE_KOREAN,
-        'es': PROMPT_NAME_CULTURE_AWARE_SPANISH,
-        'zh': PROMPT_NAME_CULTURE_AWARE_CHINESE
-    }
+#     system_prompt = selected_prompt["system_prompt"]
+#     user_prompt_template = selected_prompt["user_prompt"]
     
-    prompt_name = prompt_mapping.get(target_language)
-    if not prompt_name:
-        logging.warning(f"Unsupported language: {target_language}")
-        return english_alt_text  # 지원하지 않는 언어면 원본 반환
+#     formatted_user_prompt = user_prompt_template.format(
+#         english_alt_text=english_alt_text
+#     )
     
-    messages = create_translation_messages(prompt_name, english_alt_text)
+#     logging.info(f"Translation prompt: {formatted_user_prompt}")
     
-    try:
-        response = call_api_with_retries(
-            client=client,
-            model=OPENAI_4O_MINI_MODEL,
-            messages=messages,
-            temperature=0.3,  # 창의성과 일관성의 균형
-            timeout=REQUEST_TIMEOUT
-        )
-        translated_text = response.choices[0].message.content.strip()
-        logging.info(f"Translation result - {target_language}: {translated_text}")
-        return translated_text
-    except Exception as e:
-        logging.error(f"Culture-aware translation failed: {e}")
-        return english_alt_text  # 실패 시 원본 반환
+#     messages = [
+#         {"role": "system", "content": system_prompt},
+#         {"role": "user", "content": formatted_user_prompt}
+#     ]
+    
+#     return messages
 
+# def translate_culture_aware_sync(english_alt_text: str, target_language: str):
+#     """
+#     영어 alt-text를 문화적 특성을 고려하여 번역하는 동기 함수
+#     """
+#     client = ai.Client()
+    
+#     # 언어별 프롬프트 매핑
+#     prompt_mapping = {
+#         'ko': PROMPT_NAME_CULTURE_AWARE_KOREAN,
+#         'es': PROMPT_NAME_CULTURE_AWARE_SPANISH,
+#         'zh': PROMPT_NAME_CULTURE_AWARE_CHINESE
+#     }
+    
+#     prompt_name = prompt_mapping.get(target_language)
+#     if not prompt_name:
+#         logging.warning(f"Unsupported language: {target_language}")
+#         return english_alt_text  # 지원하지 않는 언어면 원본 반환
+    
+#     messages = create_translation_messages(prompt_name, english_alt_text)
+    
+#     try:
+#         response = call_api_with_retries(
+#             client=client,
+#             model=OPENAI_4O_MINI_MODEL,
+#             messages=messages,
+#             temperature=0.3,  # 창의성과 일관성의 균형
+#             timeout=REQUEST_TIMEOUT
+#         )
+#         translated_text = response.choices[0].message.content.strip()
+#         logging.info(f"Translation result - {target_language}: {translated_text}")
+#         return translated_text
+#     except Exception as e:
+#         logging.error(f"Culture-aware translation failed: {e}")
+#         return english_alt_text  # 실패 시 원본 반환
+
+# async def translate_culture_aware(english_alt_text: str, target_language: str):
+#     """
+#     영어 alt-text를 문화적 특성을 고려하여 번역하는 비동기 함수
+#     """
+#     try:
+#         loop = asyncio.get_event_loop()
+#         translated_text = await loop.run_in_executor(
+#             None, 
+#             lambda: translate_culture_aware_sync(english_alt_text, target_language)
+#         )
+#         logging.info(f"Culture-aware translation completed: {english_alt_text} -> {translated_text}")
+#         return translated_text
+#     except Exception as e:
+#         error_trace = traceback.format_exc()
+#         logging.error(f"Error in function '{translate_culture_aware.__name__}': {e}")
+#         logging.error(f"Full traceback: {error_trace}")
+#         raise HTTPException(status_code=500, detail=f"Error in {translate_culture_aware.__name__}: {str(e)}")
+
+# =============================================================================
+# 🔥 새로운 번역 시스템은 translator 모듈에서 구현 예정
+# =============================================================================
+
+# 임시로 기존 함수 호출을 유지하기 위한 스텁 함수
 async def translate_culture_aware(english_alt_text: str, target_language: str):
     """
-    영어 alt-text를 문화적 특성을 고려하여 번역하는 비동기 함수
+    임시 스텁 함수 - 새로운 translator 모듈로 대체 예정
     """
-    try:
-        loop = asyncio.get_event_loop()
-        translated_text = await loop.run_in_executor(
-            None, 
-            lambda: translate_culture_aware_sync(english_alt_text, target_language)
-        )
-        logging.info(f"Culture-aware translation completed: {english_alt_text} -> {translated_text}")
-        return translated_text
-    except Exception as e:
-        error_trace = traceback.format_exc()
-        logging.error(f"Error in function '{translate_culture_aware.__name__}': {e}")
-        logging.error(f"Full traceback: {error_trace}")
-        raise HTTPException(status_code=500, detail=f"Error in {translate_culture_aware.__name__}: {str(e)}")
+    return f"[PLACEHOLDER] Translation of '{english_alt_text}' to {target_language}"

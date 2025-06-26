@@ -2,22 +2,58 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   // URL 쿼리 파라미터에서 대상 URL 가져오기
-  const url = request.nextUrl.searchParams.get('url');
+  const urlParam = request.nextUrl.searchParams.get('url');
   
-  if (!url) {
+  if (!urlParam) {
     return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
   }
+
+  let url: string = urlParam;
 
   try {
     const baseUrl = new URL(url).origin;
     const isWikimedia = url.includes('wikimedia.org');
+    const isGoogle = url.includes('google.com') || url.includes('google.co.');
     
-    // 위키미디어 이미지인 경우에만 특별한 헤더 추가
+    // 🔥 구글 URL인 경우 미국 지역 설정 파라미터 추가
+    if (isGoogle) {
+      const urlObj = new URL(url);
+      // 이미 gl 또는 hl 파라미터가 없는 경우에만 추가
+      if (!urlObj.searchParams.has('gl')) {
+        urlObj.searchParams.set('gl', 'us'); // 지역을 미국으로 설정
+      }
+      if (!urlObj.searchParams.has('hl')) {
+        urlObj.searchParams.set('hl', 'en'); // 언어를 영어로 설정
+      }
+      url = urlObj.toString();
+      console.log('Modified Google URL for US region:', url);
+    }
+    
+    // 🔥 구글 및 위키미디어에 대한 헤더 설정
     const fetchOptions: RequestInit = {
-      headers: isWikimedia ? {
-        'Referer': 'https://wikipedia.org',
-        'User-Agent': 'Mozilla/5.0 (compatible; WikipediaViewer/1.0)'
-      } : {}
+      headers: {
+        // 기본 헤더들
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        
+        ...(isGoogle ? {
+          // 🔥 구글에 대한 미국 기반 헤더들
+          'Accept-Language': 'en-US,en;q=0.9',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://www.google.com/',
+          'DNT': '1', // Do Not Track
+          'Upgrade-Insecure-Requests': '1',
+        } : isWikimedia ? {
+          // 위키미디어에 대한 기존 설정 유지
+          'Referer': 'https://wikipedia.org',
+          'User-Agent': 'Mozilla/5.0 (compatible; WikipediaViewer/1.0)'
+        } : {
+          // 기타 사이트에 대한 기본 헤더
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        })
+      }
     };
     
     // 대상 URL에서 콘텐츠 가져오기
