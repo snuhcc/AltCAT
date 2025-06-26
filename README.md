@@ -6,7 +6,7 @@
 
  🛠️ 1. Clone Project
 ```bash
-git@github.com:snuhcc/AltAuthor.git
+git@github.com:snuhcc/AltCAT.git
 ```
 
 📦 2. Install Dependencies
