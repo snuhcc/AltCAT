@@ -64,7 +64,7 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
         )}
 
         {/* Dashboard Header */}
-        <div className="p-4 bg-gray-500">
+        <div className="p-4 bg-gray-600">
           <div className="flex items-center gap-2 font-bold text-lg">
             {dashboard_icon}
             Dashboard
@@ -89,11 +89,11 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
         </div>
 
         {/* Scrollable Links */}
-        <div className="flex-grow bg-gray-600 px-2 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-600">
+        <div className="flex-grow bg-gray-500 px-2 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-600">
           {/* Sticky Header */}
-          <div className="sticky top-0 bg-gray-600 z-10">
+          <div className="sticky top-0 bg-gray-500 z-10">
             {/* Current URL */}
-            <div className="my-2 text-sm bg-orange-500 p-2 font-semibold flex items-center rounded">
+            <div className="my-2 text-sm p-2 font-semibold flex items-center rounded" style={{ backgroundColor: '#FFA500' }}>
               <span className="pr-2 font-bold truncate">{currentUrl}</span>
             </div>
 
@@ -105,9 +105,20 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
           {urls.map((u, index) => (
             <div key={index}>
               <div
-                className={`p-2 py-4 cursor-pointer rounded hover:bg-orange-400 transition-colors duration-200 ${
-                  currentUrl === u ? 'bg-orange-500' : ''
-                }`}
+                className={`p-2 py-4 cursor-pointer rounded transition-colors duration-200`}
+                style={{
+                  backgroundColor: currentUrl === u ? '#FFA500' : 'transparent'
+                }}
+                onMouseEnter={(e) => {
+                  if (currentUrl !== u) {
+                    e.currentTarget.style.backgroundColor = '#FFA500';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (currentUrl !== u) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }
+                }}
                 onClick={() => onSelectUrl(u)}
               >
                 {u}
@@ -117,8 +128,8 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
         </div>
 
         {/* Logo at Bottom */}
-        <div className="flex items-center justify-center py-2 px-4 bg-gray-500 border-t border-gray-400">
-          <span className="text-xl font-bold mr-3">AltCAT AI</span>
+        <div className="flex items-center justify-center py-1 px-4 bg-gray-600 border-t border-gray-400">
+          <span className="text-xl font-bold mr-2">AltCAT AI</span>
           <Image
             src="/cat.png" // Local image path
             alt="Logo"
@@ -131,7 +142,13 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
         {/* Hide Sidebar Button */}
         {!isHidden && (
           <button
-            className="absolute top-4 right-2 w-8 h-8 bg-gray-400 hover:bg-orange-400 text-white flex items-center justify-center rounded-full shadow-lg transition-colors duration-300"
+            className="absolute top-4 right-2 w-8 h-8 bg-gray-400 text-white flex items-center justify-center rounded-full shadow-lg transition-colors duration-300"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#FFA500';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgb(156 163 175)'; // gray-400
+            }}
             onClick={toggleSidebar}
             aria-label="Hide Sidebar"
           >
@@ -143,7 +160,13 @@ export default function Sidebar({ currentUrl, onSelectUrl, urls }: SidebarProps)
       {/* Thin Bar When Hidden */}
       {isHidden && (
         <button
-          className="absolute top-1/2 left-0 transform -translate-y-1/2 w-4 h-20 bg-gray-400 hover:bg-orange-400 flex items-center justify-center rounded-r-lg cursor-pointer z-50 transition-colors duration-500 ease-in-out"
+          className="absolute top-1/2 left-0 transform -translate-y-1/2 w-4 h-20 bg-gray-400 flex items-center justify-center rounded-r-lg cursor-pointer z-50 transition-colors duration-500 ease-in-out"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#FFA500';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgb(156 163 175)'; // gray-400
+          }}
           onClick={toggleSidebar}
           aria-label="Show Sidebar"
         >
