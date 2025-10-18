@@ -49,13 +49,6 @@ export default function TopBar({ currentUrl, currentLanguage, onUrlChange, onSub
         const baseUrl = URLMappingUtils.extractBaseUrl(currentUrl);
         const supported = await URLMappingUtils.getSupportedLanguages(baseUrl);
         setSupportedLanguages(supported);
-        
-        // 현재 선택된 언어가 지원되지 않는 경우 첫 번째 지원 언어로 변경
-        if (!supported.includes(currentLanguage)) {
-          const fallbackLanguage = supported[0] || 'en';
-          console.log(`Current language ${currentLanguage} not supported, switching to ${fallbackLanguage}`);
-          onLanguageChange(fallbackLanguage);
-        }
       } catch (error) {
         console.error('Failed to fetch supported languages:', error);
         setSupportedLanguages(['en']); // fallback
@@ -63,7 +56,7 @@ export default function TopBar({ currentUrl, currentLanguage, onUrlChange, onSub
     };
 
     fetchSupportedLanguages();
-  }, [currentUrl, currentLanguage]);
+  }, [currentUrl]);
 
   // 현재 선택된 언어 정보 가져오기 (pendingLanguage가 있으면 우선 표시)
   const displayLanguage = pendingLanguage || currentLanguage;
@@ -232,34 +225,26 @@ export default function TopBar({ currentUrl, currentLanguage, onUrlChange, onSub
             {chevronDownIcon}
           </button>
 
-          {/* 드롭다운 메뉴 - 모든 언어 표시, 지원되지 않는 언어는 비활성화 */}
+          {/* 드롭다운 메뉴 - 모든 언어 표시 */}
           {isLanguageDropdownOpen && (
             <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50">
               {allLanguages.map((language) => {
                 const isSelected = (pendingLanguage || currentLanguage) === language.code;
-                const isSupported = supportedLanguages.includes(language.code);
                 
                 return (
                   <button
                     key={language.code}
-                    onClick={() => isSupported ? handleLanguageSelect(language) : undefined}
-                    disabled={!isSupported}
+                    onClick={() => handleLanguageSelect(language)}
                     className={`w-full flex items-center space-x-2 px-3 py-2 text-left transition-colors ${
-                      !isSupported 
-                        ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
-                        : isSelected 
-                          ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' 
-                          : 'text-gray-700 hover:bg-gray-50'
+                      isSelected 
+                        ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' 
+                        : 'text-gray-700 hover:bg-gray-50'
                     }`}
-                    title={!isSupported ? 'Not available for this website' : ''}
                   >
-                    <span className={`text-lg ${!isSupported ? 'grayscale opacity-50' : ''}`}>
+                    <span className="text-lg">
                       {language.flag}
                     </span>
                     <span className="text-sm font-medium">{language.name}</span>
-                    {!isSupported && (
-                      <span className="ml-auto text-xs text-gray-400">N/A</span>
-                    )}
                   </button>
                 );
               })}

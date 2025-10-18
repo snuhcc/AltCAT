@@ -12,10 +12,9 @@ import yaml
 import json
 import logging
 import asyncio
-import base64
-import cairosvg  # 🔥 SVG 변환을 위해 추가
 from typing import Dict, Any, Optional, List, TypedDict
 from pathlib import Path
+from ..image_utils import process_image_url
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -74,12 +73,11 @@ class TranslatorPipeline:
         self.config_path = config_path
         self.config = self._load_config()
         
-        # SVG 캐시 디렉토리 설정
-        self.svg_cache_dir = "svg_data_cache"
-        
         # LangChain 모델 초기화 (POC와 동일)
-        self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3, streaming=True)
-        self.agent_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+        # llm: 번역 생성용 (temperature 0.3)
+        self.llm = ChatOpenAI(model="gpt-4.1-mini", temperature=0.3, streaming=True)
+        # agent_llm: guideline & evaluator용 (temperature 0.1)
+        self.agent_llm = ChatOpenAI(model="gpt-4.1-mini", temperature=0.3)
         
         # Tavily 검색 도구 초기화 (POC와 동일)
         self.tavily_tool = TavilySearchResults(max_results=3)
@@ -101,44 +99,12 @@ class TranslatorPipeline:
             logging.error(f"Failed to load config from {self.config_path}: {e}")
             raise
     
-    def _convert_svg_to_png_base64(self, svg_url: str) -> str:
-        """
-        SVG URL을 PNG로 변환하고 base64 데이터 URL로 반환
-        """
-        logging.info(f"Converting SVG to PNG: {svg_url}")
-        
-        # SVG 캐시 디렉토리 생성
-        if not os.path.exists(self.svg_cache_dir):
-            os.makedirs(self.svg_cache_dir)
-        
-        # 파일명 생성
-        file_name = svg_url.split("/")[-1]
-        png_filename = file_name.replace(".svg", ".png")
-        png_path = os.path.join(self.svg_cache_dir, png_filename)
-        
-        # SVG를 PNG로 변환
-        cairosvg.svg2png(url=svg_url, write_to=png_path)
-        
-        # PNG 파일을 base64로 인코딩
-        with open(png_path, 'rb') as png_file:
-            png_data = base64.b64encode(png_file.read()).decode('utf-8')
-        
-        # 캐시된 PNG 파일 삭제 (메모리 관리)
-        try:
-            os.remove(png_path)
-        except Exception as e:
-            logging.warning(f"Failed to remove cached PNG file: {e}")
-        
-        return f"data:image/png;base64,{png_data}"
-    
     def _process_image_url(self, image_url: str) -> str:
         """
         이미지 URL을 처리하여 OpenAI Vision API가 사용할 수 있는 형태로 변환
+        image_utils 모듈의 통합 함수 사용
         """
-        if image_url.strip().lower().endswith('.svg'):
-            logging.info(f"SVG detected, converting to PNG: {image_url}")
-            return self._convert_svg_to_png_base64(image_url)
-        return image_url
+        return process_image_url(image_url)
     
     def _init_agents_and_chains(self):
         """POC와 동일한 Agent 및 Chain 초기화"""

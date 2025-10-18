@@ -1,20 +1,26 @@
 {
   "mappings": {
-    "https://www.uscis.gov/": {
-      "en": "https://www.uscis.gov/",
-      "ko": null,
-      "zh": null,
-      "es": "https://www.uscis.gov/es"
-    },
     "https://assets25.sigaccess.org/": {
       "en": "https://assets25.sigaccess.org/",
       "ko": null,
       "zh": null,
       "es": null
     },
-    "https://www.chosun.com/english/opinion-en/2025/06/26/IBNL6FHHHVC7HK4THF4A6MLL34/": {
-      "en": "https://www.chosun.com/english/opinion-en/2025/06/26/IBNL6FHHHVC7HK4THF4A6MLL34/",
-      "ko": "https://www.chosun.com/opinion/editorial/2025/06/26/P24PWFPQ4ZD3TMC7RACHYAM6YE/",
+    "https://www.uscis.gov/": {
+      "en": "https://www.uscis.gov/",
+      "ko": null,
+      "zh": null,
+      "es": "https://www.uscis.gov/es"
+    },
+    "https://www.microsoft.com/en-us/accessibility": {
+      "en": "https://www.microsoft.com/en-us/accessibility",
+      "ko": "https://www.microsoft.com/ko-kr/accessibility",
+      "zh": null,
+      "es": "https://www.microsoft.com/es-es/accessibility"
+    },
+    "https://en.snu.ac.kr/index.html": {
+      "en": "https://en.snu.ac.kr/index.html",
+      "ko": "https://www.snu.ac.kr/index.html",
       "zh": null,
       "es": null
     }

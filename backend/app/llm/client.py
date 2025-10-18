@@ -2,14 +2,18 @@ import aisuite as ai
 from llm.prompt_util import *
 import asyncio
 import os
-import cairosvg
-import base64
 import logging
 import time
 import traceback
 from fastapi import HTTPException
+from .image_utils import process_image_url, sanitize_image_url_for_logging
 
-OPENAI_4O_MINI_MODEL = "openai:gpt-4o-mini"
+# httpx, httpcore, openai의 DEBUG 로그 비활성화 (base64 데이터 출력 방지)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
+
+OPENAI_4O_MINI_MODEL = "openai:gpt-4.1-mini"
 OPENAI_4O = "openai:gpt-4o"
 PROMPT_NAME_IMAGE_CLASSIFICATION = "image_classification"
 PROMPT_NAME_ENHACNED_ALT_TEXT = "enhanced_alt_text_generation"
@@ -23,23 +27,7 @@ REQUEST_TIMEOUT = 10
 
 EMPTY_STRING = ""
 
-def convert_svg_to_png(svg_url:str):
-    logging.info(f"Converting SVG to PNG: {svg_url}")
-    # Step 1: Create "image_data" directory if it doesn't exist
-    dir_name = DIR_NAME_SVG_DATA
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
-    
-    # Step 2: Get Unique File Name from url
-    file_name = svg_url.split("/")[-1]
-    logging.info(f"file_name: {file_name}")
-    png_filename = file_name.replace(".svg", ".png")
-
-    # Step 3: Convert file
-    cairosvg.svg2png(url=svg_url, write_to=os.path.join(dir_name, png_filename))
-
-    # Step 4: Return abs path of the PNG file
-    return os.path.abspath(os.path.join(dir_name, png_filename))
+# 🔥 이미지 처리 함수들은 image_utils.py로 이동됨
 
 def create_messages(prompt_name: str, image_url: str, alt_text: str, image_type:str = "", context:str = ""):
     prompts = load_prompts()
@@ -60,7 +48,14 @@ def create_messages(prompt_name: str, image_url: str, alt_text: str, image_type:
             image_type=variables["image_type"],
             context=variables["context"]
         )
-        logging.info(formatted_user_prompt)
+        # 로깅용으로 image_url을 sanitize해서 출력
+        log_safe_prompt = user_prompt_template.format(
+            current_alt_text=variables["current_alt_text"],
+            image_url=sanitize_image_url_for_logging(variables["image_url"]),
+            image_type=variables["image_type"],
+            context=variables["context"]
+        )
+        logging.info(log_safe_prompt)
         messages = [
             {"role": "system", "content": system_prompt},
             {
@@ -79,7 +74,11 @@ def create_messages(prompt_name: str, image_url: str, alt_text: str, image_type:
         formatted_user_prompt = user_prompt_template.format(
             image_url=variables["image_url"],
         )
-        logging.info(formatted_user_prompt)
+        # 로깅용으로 image_url을 sanitize해서 출력
+        log_safe_prompt = user_prompt_template.format(
+            image_url=sanitize_image_url_for_logging(variables["image_url"]),
+        )
+        logging.info(log_safe_prompt)
         messages = [
             {"role": "system", "content": system_prompt},
             {
@@ -94,7 +93,7 @@ def create_messages(prompt_name: str, image_url: str, alt_text: str, image_type:
     else:
         raise HTTPException(status_code=500, detail="프롬프트 이름이 잘못되었습니다.")
 
-def call_api_with_retries(client, model, messages, temperature=0.0, max_retries=3, timeout=5):
+def call_api_with_retries(client, model, messages, max_retries=3, timeout=5, temperature=0.1):
     """
     client.chat.completions.create를 최대 max_retries번 시도하고,
     실패 시 예외를 다시 raise 혹은 특정 값을 리턴하여 처리할 수 있게 하는 헬퍼 함수
@@ -104,8 +103,8 @@ def call_api_with_retries(client, model, messages, temperature=0.0, max_retries=
             response = client.chat.completions.create(
                 model=model,
                 messages=messages,
-                temperature=temperature,
-                timeout=timeout
+                timeout=timeout,
+                temperature=temperature
             )
             return response
         except Exception as e:  # 실제로는 Timeout 등 필요한 예외를 지정해주는 것이 좋음
@@ -121,13 +120,10 @@ def call_api_with_retries(client, model, messages, temperature=0.0, max_retries=
 def make_request(image_url: str, alt_text: str, is_button: bool = False, context: str = ""):
     client = ai.Client()
     
-    # Download svg image and convert to png
-    logging.info(f"image_url: {image_url}")
-    if image_url.strip().lower().endswith('.svg'):
-        image_path = convert_svg_to_png(image_url)
-        image_url = f"data:image/png;base64,{base64.b64encode(open(image_path, 'rb').read()).decode('utf-8')}"
-
-    logging.info(f"image_url: {image_url}")
+    # 🔥 image_utils를 사용하여 이미지 처리
+    image_url = process_image_url(image_url)
+    
+    logging.info(f"image_url: {sanitize_image_url_for_logging(image_url)}")
 
     image_type = ""
     #TODO: Temporary disable for demo
@@ -139,7 +135,6 @@ def make_request(image_url: str, alt_text: str, is_button: bool = False, context
                 client=client,
                 model=OPENAI_4O_MINI_MODEL,
                 messages=messages,
-                temperature=0.0,
                 timeout=REQUEST_TIMEOUT
             )
             image_type = response.choices[0].message.content
@@ -161,7 +156,6 @@ def make_request(image_url: str, alt_text: str, is_button: bool = False, context
                 client=client,
                 model=OPENAI_4O_MINI_MODEL,
                 messages=messages,
-                temperature=0.1,
                 timeout=REQUEST_TIMEOUT
             )
             ai_generated_alt_text = response.choices[0].message.content
@@ -178,7 +172,6 @@ def make_request(image_url: str, alt_text: str, is_button: bool = False, context
                 client=client,
                 model=OPENAI_4O_MINI_MODEL,
                 messages=messages,
-                temperature=0.1,
                 timeout=REQUEST_TIMEOUT
             )
             ai_generated_alt_text = EMPTY_STRING  # 수행하지 않음

@@ -187,6 +187,14 @@ export class URLMappingUtils {
       .replace(/\/(en|ko|kr|zh|cn|es|es-es)(\?.*)?$/, '')
       .replace(/\/(en|ko|kr|zh|cn|es|es-es)\/.*$/, '');
   }
+  
+  /**
+   * JSON 파일에 정의된 모든 베이스 URL 목록 가져오기
+   */
+  static async getAllBaseUrls(): Promise<string[]> {
+    await loadMappings();
+    return Object.keys(urlMappings);
+  }
 }
 
 // 앱 시작 시 초기화
