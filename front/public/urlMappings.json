@@ -18,9 +18,15 @@
       "zh": null,
       "es": "https://www.microsoft.com/es-es/accessibility"
     },
-    "https://en.snu.ac.kr/index.html": {
-      "en": "https://en.snu.ac.kr/index.html",
-      "ko": "https://www.snu.ac.kr/index.html",
+    "https://www.w3.org/WAI/fundamentals/accessibility-intro/": {
+      "en": "https://www.w3.org/WAI/fundamentals/accessibility-intro/",
+      "ko": "https://www.w3.org/WAI/fundamentals/accessibility-intro/ko",
+      "zh": "https://www.w3.org/WAI/fundamentals/accessibility-intro/zh-hans",
+      "es": "https://www.w3.org/WAI/fundamentals/accessibility-intro/es"
+    },
+    "https://www.chosun.com/english/industry-en/2025/10/19/G7ICEGTLSBH6XC52ABH46LI4P4/" : {
+      "en": "https://www.chosun.com/english/industry-en/2025/10/19/G7ICEGTLSBH6XC52ABH46LI4P4/",
+      "ko": "https://www.chosun.com/economy/industry-company/2025/10/19/VN6BMRTTJNBULPFBZHN2UPVHOQ/",
       "zh": null,
       "es": null
     }
