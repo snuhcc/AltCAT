@@ -41,6 +41,7 @@ An AI-powered tool for automatic generation and culture-aware translation of ima
 - **Node.js** v23.3.0 or higher
 - **Python** 3.11 or higher
 - **OpenAI API Key** (for GPT-4.1 Vision API)
+- **Tavily API Key** (for culture-aware translation with web search)
 
 ### 🛠️ 1. Clone Project
 
@@ -64,13 +65,18 @@ conda activate altcat
 pip install -r requirements.txt
 ```
 
-#### 2-3. Configure API Key
+#### 2-3. Configure API Keys
 
 Create a `.env` file in the project root:
 
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
+TAVILY_API_KEY=your_tavily_api_key_here
 ```
+
+**How to get API Keys:**
+- **OpenAI API Key**: https://platform.openai.com/api-keys
+- **Tavily API Key**: https://tavily.com/ (Sign up for free)
 
 #### 2-4. Run Backend Server
 
